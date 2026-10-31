@@ -1,4 +1,4 @@
-package com.rhythm.music
+sfpackage com.rhythm.music
 
 import android.Manifest
 import android.app.AlertDialog
