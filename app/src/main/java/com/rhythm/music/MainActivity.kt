@@ -866,83 +866,231 @@ putStringArrayListExtra(
     }
 
     private fun openNowPlaying() {
-        val track = currentTrack ?: return
+    val track = currentTrack ?: return
 
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(d(22), d(22), d(22), d(18))
-            background = shape(panel, 20)
+    val box = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(d(22), d(22), d(22), d(18))
+        background = shape(panel, 20)
+    }
+
+    box.addView(label("NOW PLAYING", 11f, blue, true))
+
+    val artwork = ImageView(this).apply {
+        scaleType = ImageView.ScaleType.CENTER_CROP
+        setImageResource(android.R.drawable.ic_media_play)
+        background = shape(panel2, 18)
+    }
+
+    artworkView = artwork
+
+    box.addView(
+        artwork,
+        LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            d(230)
+        ).apply {
+            setMargins(0, d(18), 0, d(18))
+        }
+    )
+
+    val titleView = label(track.name, 21f, white, true)
+    nowPlayingTitle = titleView
+    box.addView(titleView)
+
+    val artistView = label(track.artist, 13f, muted)
+    nowPlayingArtist = artistView
+    box.addView(artistView)
+
+    val timeRow = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+    }
+
+    val elapsed = label("0:00", 11f, muted)
+    val total = label("0:00", 11f, muted)
+
+    elapsedTime = elapsed
+    totalTime = total
+
+    timeRow.addView(
+        elapsed,
+        LinearLayout.LayoutParams(0, -2, 1f)
+    )
+
+    timeRow.addView(total)
+
+    box.addView(timeRow)
+
+    val seek = SeekBar(this).apply {
+        max = currentDuration.coerceAtLeast(1)
+        progress = currentPosition.coerceIn(0, max)
+    }
+
+    progressBar = seek
+    box.addView(seek)
+
+    seek.setOnSeekBarChangeListener(
+        object : SeekBar.OnSeekBarChangeListener {
+
+            override fun onStartTrackingTouch(bar: SeekBar?) {
+                isUserSeeking = true
+            }
+
+            override fun onProgressChanged(
+                bar: SeekBar?,
+                progress: Int,
+                fromUser: Boolean
+            ) {
+                if (fromUser) {
+                    elapsed.text = formatTime(progress)
+                }
+            }
+
+            override fun onStopTrackingTouch(bar: SeekBar?) {
+                isUserSeeking = false
+
+                val duration = currentDuration
+                if (duration > 0) {
+                    val position =
+                        (bar?.progress?.toLong()?.times(1000)
+                            ?: 0L) / duration
+
+                    sendAction(
+                        PlaybackService.SEEK,
+                        position.toInt().coerceIn(0, 1000)
+                    )
+                }
+            }
+        }
+    )
+
+    val controls = LinearLayout(this).apply {
+        gravity = Gravity.CENTER
+        setPadding(0, d(18), 0, d(8))
+    }
+
+    val previous = pill("⏮")
+    val toggle = pill(
+        if (isMusicPlaying) "Ⅱ PAUSE" else "▶ PLAY",
+        true
+    )
+    val next = pill("⏭")
+
+    nowPlayingToggle = toggle
+
+    controls.addView(
+        previous,
+        LinearLayout.LayoutParams(0, d(48), 1f)
+    )
+
+    controls.addView(
+        toggle,
+        LinearLayout.LayoutParams(0, d(48), 1f)
+    )
+
+    controls.addView(
+        next,
+        LinearLayout.LayoutParams(0, d(48), 1f)
+    )
+
+    box.addView(controls)
+
+    previous.setOnClickListener {
+        sendAction(PlaybackService.PREVIOUS)
+    }
+
+    toggle.setOnClickListener {
+        sendAction(PlaybackService.TOGGLE)
+    }
+
+    next.setOnClickListener {
+        sendAction(PlaybackService.NEXT)
+    }
+
+    val extraControls = LinearLayout(this).apply {
+        gravity = Gravity.CENTER
+        setPadding(0, d(8), 0, d(14))
+    }
+
+    val shuffle = pill(
+        if (shuffleEnabled) "🔀 ON" else "🔀"
+    )
+
+    val repeat = pill(
+        when (repeatMode) {
+            1 -> "🔁 ALL"
+            2 -> "🔂 ONE"
+            else -> "🔁"
+        }
+    )
+
+    shuffleButton = shuffle
+    repeatButton = repeat
+
+    extraControls.addView(
+        shuffle,
+        LinearLayout.LayoutParams(0, d(42), 1f)
+    )
+
+    extraControls.addView(
+        repeat,
+        LinearLayout.LayoutParams(0, d(42), 1f)
+    )
+
+    box.addView(extraControls)
+
+    shuffle.setOnClickListener {
+        sendAction(PlaybackService.SHUFFLE)
+    }
+
+    repeat.setOnClickListener {
+        sendAction(PlaybackService.REPEAT)
+    }
+
+    box.addView(label("UP NEXT", 12f, blue, true))
+
+    currentQueue
+        .filter { it.id != currentTrack?.id }
+        .take(5)
+        .forEach { item ->
+
+            val queueItem = label(
+                "${item.name}  •  ${item.artist}",
+                13f,
+                white
+            ).apply {
+                setPadding(d(8), d(12), d(8), d(12))
+                setOnClickListener {
+                    playTrack(item, currentQueue)
+                }
+            }
+
+            box.addView(queueItem)
         }
 
-        box.addView(
-            label("NOW PLAYING", 11f, blue, true)
-        )
+    val scroll = ScrollView(this).apply {
+        addView(box)
+        isFillViewport = true
+    }
 
-        val titleView = label(track.name, 21f, white, true).apply {
-    setPadding(0, d(16), 0, d(5))
-}
-nowPlayingTitle = titleView
-box.addView(titleView)
+    nowPlayingDialog = AlertDialog.Builder(this)
+        .setView(scroll)
+        .setPositiveButton("CLOSE", null)
+        .create()
 
-val artistView = label(track.artist, 13f, muted)
-nowPlayingArtist = artistView
-box.addView(artistView)
+    nowPlayingDialog?.show()
 
-        val controls = LinearLayout(this).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, d(22), 0, d(8))
-        }
+    nowPlayingDialog?.window?.setBackgroundDrawable(
+        shape(bg, 20)
+    )
 
-        val previous = pill("⏮")
-        val toggle = pill(
-    if (isMusicPlaying) "Ⅱ PAUSE" else "▶ PLAY",
-    true
-)
-nowPlayingToggle = toggle
-        val next = pill("⏭")
+    nowPlayingDialog?.window?.setLayout(
+        android.view.WindowManager.LayoutParams.MATCH_PARENT,
+        android.view.WindowManager.LayoutParams.MATCH_PARENT
+    )
 
-        controls.addView(
-            previous,
-            LinearLayout.LayoutParams(0, d(48), 1f).apply {
-                marginEnd = d(5)
-            }
-        )
-
-        controls.addView(
-            toggle,
-            LinearLayout.LayoutParams(0, d(48), 1f).apply {
-                marginEnd = d(5)
-            }
-        )
-
-        controls.addView(
-            next,
-            LinearLayout.LayoutParams(0, d(48), 1f)
-        )
-
-        box.addView(controls)
-
-        previous.setOnClickListener {
-    sendAction(PlaybackService.PREVIOUS)
-}
-
-toggle.setOnClickListener {
-    sendAction(PlaybackService.TOGGLE)
-}
-
-next.setOnClickListener {
-    sendAction(PlaybackService.NEXT)
-}
-
-        nowPlayingDialog = AlertDialog.Builder(this)
-            .setView(box)
-            .setPositiveButton("CLOSE", null)
-            .create()
-
-        nowPlayingDialog?.show()
-        nowPlayingDialog?.window?.setBackgroundDrawable(
-            shape(bg, 20)
-        )
+    loadArtwork(track.imageUrl)
     }
 
     private fun createPlaylist() {
