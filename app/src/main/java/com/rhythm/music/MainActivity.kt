@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity() {
     private val tracks = mutableListOf<Track>()
     private val favourites = linkedSetOf<String>()
     private val playlists = linkedMapOf<String, MutableSet<String>>()
+    private var currentQueue = listOf<Track>()
 
     private lateinit var listBox: LinearLayout
     private lateinit var status: TextView
@@ -91,8 +93,16 @@ private var isUserSeeking = false
 
         val trackId = intent.getStringExtra("id") ?: ""
 
-        currentTrack = tracks.firstOrNull { it.id == trackId }
-            ?: currentTrack
+        val newTrack = currentQueue.firstOrNull { it.id == trackId }
+    ?: tracks.firstOrNull { it.id == trackId }
+
+if (newTrack != null && newTrack.id != currentTrack?.id) {
+    currentTrack = newTrack
+
+    if (nowPlayingDialog?.isShowing == true) {
+        loadArtwork(newTrack.imageUrl)
+    }
+}
 
         isMusicPlaying = playing
 
@@ -133,6 +143,37 @@ private var isUserSeeking = false
     val seconds = totalSeconds % 60
 
     return String.format("%d:%02d", minutes, seconds)
+    }
+    private fun loadArtwork(imageUrl: String) {
+    val image = artworkView ?: return
+
+    image.setImageResource(android.R.drawable.ic_media_play)
+
+    if (imageUrl.isBlank() || imageUrl == "null") return
+
+    thread {
+        try {
+            val connection =
+                URL(imageUrl).openConnection() as HttpURLConnection
+
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+
+            val bitmap = connection.inputStream.use {
+                BitmapFactory.decodeStream(it)
+            }
+
+            connection.disconnect()
+
+            runOnUiThread {
+                if (bitmap != null && artworkView === image) {
+                    image.setImageBitmap(bitmap)
+                }
+            }
+        } catch (_: Exception) {
+            // Default artwork remains visible.
+        }
+    }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -762,6 +803,7 @@ miniPlayButton = play
         track: Track,
         queue: List<Track>
     ) {
+        currentQueue = queue
         currentTrack = track
 
         miniTitle.text = track.name
