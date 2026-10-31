@@ -51,17 +51,40 @@ class MainActivity : AppCompatActivity() {
     private var receiverRegistered = false
 
     private var nowPlayingDialog: AlertDialog? = null
+    private var miniPlayButton: TextView? = null
+private var nowPlayingToggle: TextView? = null
+    private var isMusicPlaying = false
 
     private val stateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == PlaybackService.STATE) {
-                miniTitle.text =
-                    intent.getStringExtra("title") ?: "Nothing playing"
+    override fun onReceive(context: Context?, intent: Intent?) {
 
-                miniArtist.text =
-                    intent.getStringExtra("artist") ?: ""
+        if (intent?.action == PlaybackService.STATE) {
+
+            val title = intent.getStringExtra("title")
+                ?: "Nothing playing"
+
+            val artist = intent.getStringExtra("artist")
+                ?: ""
+
+            val playing = intent.getBooleanExtra("playing", false)
+
+            isMusicPlaying = playing
+
+            if (::miniTitle.isInitialized) {
+                miniTitle.text = title
             }
+
+            if (::miniArtist.isInitialized) {
+                miniArtist.text = artist
+            }
+
+            miniPlayButton?.text =
+                if (playing) "Ⅱ" else "▶"
+
+            nowPlayingToggle?.text =
+                if (playing) "Ⅱ PAUSE" else "▶ PLAY"
         }
+    }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -428,6 +451,8 @@ class MainActivity : AppCompatActivity() {
         )
 
         val play = pill("▶", true)
+        miniPlayButton = play
+miniPlayButton = play
 
         mini.addView(
             play,
@@ -770,7 +795,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         val previous = pill("⏮")
-        val toggle = pill("▶ / ⏸", true)
+        val toggle = pill(
+    if (isMusicPlaying) "Ⅱ PAUSE" else "▶ PLAY",
+    true
+)
+nowPlayingToggle = toggle
         val next = pill("⏭")
 
         controls.addView(
@@ -795,16 +824,16 @@ class MainActivity : AppCompatActivity() {
         box.addView(controls)
 
         previous.setOnClickListener {
-            sendAction("PREVIOUS")
-        }
+    sendAction(PlaybackService.PREVIOUS)
+}
 
-        toggle.setOnClickListener {
-            sendAction(PlaybackService.TOGGLE)
-        }
+toggle.setOnClickListener {
+    sendAction(PlaybackService.TOGGLE)
+}
 
-        next.setOnClickListener {
-            sendAction("NEXT")
-        }
+next.setOnClickListener {
+    sendAction(PlaybackService.NEXT)
+}
 
         nowPlayingDialog = AlertDialog.Builder(this)
             .setView(box)
@@ -1034,14 +1063,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        if (receiverRegistered) {
-            try {
-                unregisterReceiver(stateReceiver)
-            } catch (_: Exception) {
-            }
+    if (receiverRegistered) {
+        try {
+            unregisterReceiver(stateReceiver)
+        } catch (_: Exception) {
         }
+        receiverRegistered = false
+    }
 
-        nowPlayingDialog?.dismiss()
-        super.onDestroy()
+    nowPlayingDialog?.dismiss()
+    super.onDestroy()
     }
 }
