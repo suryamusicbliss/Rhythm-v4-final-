@@ -56,39 +56,83 @@ private var nowPlayingToggle: TextView? = null
     private var nowPlayingTitle: TextView? = null
 private var nowPlayingArtist: TextView? = null
     private var isMusicPlaying = false
+    private var currentDuration = 0
+private var currentPosition = 0
+private var shuffleEnabled = false
+private var repeatMode = 0
+
+private var progressBar: SeekBar? = null
+private var elapsedTime: TextView? = null
+private var totalTime: TextView? = null
+private var shuffleButton: TextView? = null
+private var repeatButton: TextView? = null
+private var artworkView: ImageView? = null
+
+private var isUserSeeking = false
 
     private val stateReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
 
-        if (intent?.action == PlaybackService.STATE) {
+        if (intent?.action != PlaybackService.STATE) return
 
-            val title = intent.getStringExtra("title")
-                ?: "Nothing playing"
+        val title = intent.getStringExtra("title")
+            ?: "Nothing playing"
 
-            val artist = intent.getStringExtra("artist")
-                ?: ""
+        val artist = intent.getStringExtra("artist")
+            ?: ""
 
-            val playing = intent.getBooleanExtra("playing", false)
+        val playing = intent.getBooleanExtra("playing", false)
 
-            isMusicPlaying = playing
+        currentDuration = intent.getIntExtra("duration", 0)
+        currentPosition = intent.getIntExtra("position", 0)
 
-            if (::miniTitle.isInitialized) {
-                miniTitle.text = title
+        shuffleEnabled = intent.getBooleanExtra("shuffle", false)
+        repeatMode = intent.getIntExtra("repeat", 0)
+
+        val trackId = intent.getStringExtra("id") ?: ""
+
+        currentTrack = tracks.firstOrNull { it.id == trackId }
+            ?: currentTrack
+
+        isMusicPlaying = playing
+
+        if (::miniTitle.isInitialized) miniTitle.text = title
+        if (::miniArtist.isInitialized) miniArtist.text = artist
+
+        nowPlayingTitle?.text = title
+        nowPlayingArtist?.text = artist
+
+        miniPlayButton?.text = if (playing) "Ⅱ" else "▶"
+
+        nowPlayingToggle?.text =
+            if (playing) "Ⅱ PAUSE" else "▶ PLAY"
+
+        progressBar?.let {
+            if (!isUserSeeking) {
+                it.max = currentDuration.coerceAtLeast(1)
+                it.progress = currentPosition.coerceIn(0, it.max)
             }
+        }
 
-            if (::miniArtist.isInitialized) {
-                miniArtist.text = artist
-            }
-            nowPlayingTitle?.text = title
-nowPlayingArtist?.text = artist
+        elapsedTime?.text = formatTime(currentPosition)
+        totalTime?.text = formatTime(currentDuration)
 
-            miniPlayButton?.text =
-                if (playing) "Ⅱ" else "▶"
+        shuffleButton?.text =
+            if (shuffleEnabled) "🔀 ON" else "🔀"
 
-            nowPlayingToggle?.text =
-                if (playing) "Ⅱ PAUSE" else "▶ PLAY"
+        repeatButton?.text = when (repeatMode) {
+            1 -> "🔁 ALL"
+            2 -> "🔂 ONE"
+            else -> "🔁"
         }
     }
+    }
+    private fun formatTime(milliseconds: Int): String {
+    val totalSeconds = milliseconds / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+
+    return String.format("%d:%02d", minutes, seconds)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -745,6 +789,15 @@ miniPlayButton = play
                 "artists",
                 ArrayList(queue.map { it.artist })
             )
+            putStringArrayListExtra(
+    "ids",
+    ArrayList(queue.map { it.id })
+)
+
+putStringArrayListExtra(
+    "images",
+    ArrayList(queue.map { it.imageUrl })
+)
 
             putExtra("index", index)
         }
