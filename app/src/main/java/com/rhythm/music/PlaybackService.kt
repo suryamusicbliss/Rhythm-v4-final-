@@ -56,14 +56,18 @@ class PlaybackService : Service() {
                 publish()
             }
             NEXT -> {
-                if (index < urls.lastIndex) index++
-                startForeground(NOTIFICATION_ID, notification())
-                playCurrent()
+    if (urls.isNotEmpty()) {
+        index = (index + 1) % urls.size
+        startForeground(NOTIFICATION_ID, notification())
+        playCurrent()
+    }
             }
             PREVIOUS -> {
-                if (index > 0) index--
-                startForeground(NOTIFICATION_ID, notification())
-                playCurrent()
+    if (urls.isNotEmpty()) {
+        index = if (index > 0) index - 1 else urls.lastIndex
+        startForeground(NOTIFICATION_ID, notification())
+        playCurrent()
+    }
             }
             SEEK -> {
                 try {
