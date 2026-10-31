@@ -53,6 +53,8 @@ class MainActivity : AppCompatActivity() {
     private var nowPlayingDialog: AlertDialog? = null
     private var miniPlayButton: TextView? = null
 private var nowPlayingToggle: TextView? = null
+    private var nowPlayingTitle: TextView? = null
+private var nowPlayingArtist: TextView? = null
     private var isMusicPlaying = false
 
     private val stateReceiver = object : BroadcastReceiver() {
@@ -77,6 +79,8 @@ private var nowPlayingToggle: TextView? = null
             if (::miniArtist.isInitialized) {
                 miniArtist.text = artist
             }
+            nowPlayingTitle?.text = title
+nowPlayingArtist?.text = artist
 
             miniPlayButton?.text =
                 if (playing) "Ⅱ" else "▶"
@@ -779,15 +783,15 @@ miniPlayButton = play
             label("NOW PLAYING", 11f, blue, true)
         )
 
-        box.addView(
-            label(track.name, 21f, white, true).apply {
-                setPadding(0, d(16), 0, d(5))
-            }
-        )
+        val titleView = label(track.name, 21f, white, true).apply {
+    setPadding(0, d(16), 0, d(5))
+}
+nowPlayingTitle = titleView
+box.addView(titleView)
 
-        box.addView(
-            label(track.artist, 13f, muted)
-        )
+val artistView = label(track.artist, 13f, muted)
+nowPlayingArtist = artistView
+box.addView(artistView)
 
         val controls = LinearLayout(this).apply {
             gravity = Gravity.CENTER
